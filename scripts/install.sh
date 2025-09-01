@@ -27,18 +27,29 @@ tar -C "$tmp" -xzf "$tmp/${BIN}.tar.gz"
 # Ensure destination exists
 mkdir -p "$DEST_DIR"
 
-# Use sudo only if needed and allowed; otherwise attempt user install
-INSTALL_CMD="install -m 0755"
-if [ ! -w "$DEST_DIR" ] && command -v sudo >/dev/null 2>&1 && [ "${NO_SUDO:-}" != "1" ]; then
-  INSTALL_CMD="sudo $INSTALL_CMD"
-fi
+# Choose install strategy (BSD install doesn't support -t). Always specify dest filename.
+SRC="$tmp/${BIN}/${BIN}"
+DEST="$DEST_DIR/$BIN"
 
-$INSTALL_CMD "$tmp/${BIN}/${BIN}"
-if [ -n "${SUDO_USER:-}" ] && echo "$INSTALL_CMD" | grep -q sudo; then
-  # When installing with sudo without explicit target, install(1) puts in CWD; ensure target path
-  $INSTALL_CMD -t "$DEST_DIR" "$tmp/${BIN}/${BIN}"
+if command -v install >/dev/null 2>&1; then
+  if [ -w "$DEST_DIR" ]; then
+    install -m 0755 "$SRC" "$DEST"
+  elif command -v sudo >/dev/null 2>&1 && [ "${NO_SUDO:-}" != "1" ]; then
+    sudo install -m 0755 "$SRC" "$DEST"
+  else
+    echo "Destination not writable and sudo disabled; set DEST_DIR to a writable directory." >&2
+    exit 1
+  fi
 else
-  $INSTALL_CMD -t "$DEST_DIR" "$tmp/${BIN}/${BIN}" 2>/dev/null || true
+  # Fallback to cp + chmod
+  if [ -w "$DEST_DIR" ]; then
+    cp -f "$SRC" "$DEST" && chmod 0755 "$DEST"
+  elif command -v sudo >/dev/null 2>&1 && [ "${NO_SUDO:-}" != "1" ]; then
+    sudo cp -f "$SRC" "$DEST" && sudo chmod 0755 "$DEST"
+  else
+    echo "Destination not writable and sudo disabled; set DEST_DIR to a writable directory." >&2
+    exit 1
+  fi
 fi
 
 echo "Installed $BIN to $DEST_DIR/$BIN"
