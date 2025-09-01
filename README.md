@@ -1,5 +1,7 @@
 # nano-agent
-<img src="header.png" alt="nano-agent header" width="50%">
+<p align="center">
+  <img src="header.png" alt="nano-agent header" width="50%">
+</p>
 
 
 nano-agent is a CLI for generating, editing and compositing images using Google's `gemini-2.5-flash-image-preview` ("Nano Banana") model.
@@ -13,78 +15,77 @@ nano-agent is a CLI for generating, editing and compositing images using Google'
 ## Install
 
 ### macOS (Homebrew):
-```
+```bash
 brew tap rkirkendall/tap
 brew install rkirkendall/tap/nano-agent
 ```
 
 ### Windows (PowerShell, one‑liner; adds to PATH for current user):
 (lol idk if this actually works but try it?)
-```powershell
-iwr https://raw.githubusercontent.com/rkirkendall/nano-agent/main/scripts/install.ps1 -UseB | iex; 
-$dest = "$env:ProgramFiles\nano-agent"; 
-if ($env:Path -notlike "*$dest*") { [Environment]::SetEnvironmentVariable('Path', $env:Path + ';' + $dest, 'User') }; 
-$env:Path = [Environment]::GetEnvironmentVariable('Path','User') + ';' + [Environment]::GetEnvironmentVariable('Path','Machine')
-```
+<details>
+<summary>
 
 Set `GEMINI_API_KEY` in your environment (e.g., in a local `.env` or your shell). If you don’t have one yet, get a key from [Google AI Studio](https://aistudio.google.com/apikey).
 
-```
+```bash
 export GEMINI_API_KEY=your_key_here
 ```
 
 ## Usage
 
+- With reusable fragments (style only):
+```bash
+nano-agent examples/isometric/input.png -p "Focus on the building" -o examples/isometric/lux-palace.png -f examples/isometric/isometric-style.txt
+```
+<p align="center">
+  <img src="examples/isometric/input.png" alt="nano-agent header" width="50%">
+  <img src="examples/isometric/lux-palace.png" alt="nano-agent header" width="50%">  
+</p>
+
 - Generate a comic-styled panel from a prompt (uses the comic style fragment):
-```
-nano-agent -p "Single-panel comic: a playful banana detective in an office" \
+```bash
+nano-agent -p "Barly the bar cart similing and saying OH YEAH in a dialog bubble." \
   -f examples/comic/fragments/comic-style.txt \
-  -o examples/comic/panels/panel_prompt.png
+  -o examples/comic/panels/two.png
 ```
+<p align="center">
+  <img src="examples/comic/panels/two.png" alt="nano-agent header" width="50%">
+</p>
+
 
 - Compose a character into a place to form a panel:
-```
-nano-agent -p "Compose as a left-facing medium shot; keep character proportions" \
+```bash
+nano-agent -p "Compose as a left-facing medium shot; keep character proportions. Dan says in a dialog bubble: Yeah I could use a drink." \
   examples/comic/characters/dan.png \
   examples/comic/place/office.png \
   -f examples/comic/fragments/comic-style.txt \
-  -o examples/comic/panels/panel_dan_office.png
+  -o examples/comic/panels/one.png
 ```
 
+<p align="center">
+  <img src="examples/comic/panels/one.png" alt="nano-agent header" width="50%">
+</p>
+
 - Multi-image composition (two characters + a place):
-```
-nano-agent -p "Two-character panel; Dan on left, Barly on right; match lighting" \
+```bash
+nano-agent -p "Two-character panel in the office; Dan on right, Barly on left. Dan says CHEERS!" \
   examples/comic/characters/dan.png \
   examples/comic/characters/barly.png \
   examples/comic/place/office.png \
   -f examples/comic/fragments/comic-style.txt \
   -o examples/comic/panels/panel_dan_barly_office.png
 ```
-
-- With reusable fragments (style only):
-```
-nano-agent -p "Comic panel: Dan delivering a punchline" \
-  -f examples/comic/fragments/comic-style.txt \
-  -o examples/comic/panels/panel_gag.png
-```
+<p align="center">
+  <img src="examples/comic/panels/three.png" alt="nano-agent header" width="50%">
+</p>
 
 - Run critique-improve loops on a produced panel (`-cl` is supported):
-```
+```bash
 nano-agent -p "Tighten line work and add stronger rim light" \
   examples/comic/panels/panel_dan_office.png \
   -cl 3 \
   -o examples/comic/panels/panel_dan_office_v2.png
 # Iterations are saved to: examples/comic/panels/outputs/panel_dan_office_v2_improved_1.png, _2.png, _3.png
-```
-
-- Custom output path for multi-panel inputs (defaults to output.png if omitted):
-```
-nano-agent -p "Three-panel page, consistent style and palette" \
-  examples/comic/panels/one.png \
-  examples/comic/panels/two.png \
-  examples/comic/panels/three.png \
-  -f examples/comic/fragments/comic-style.txt \
-  -o examples/comic/panels/page_comp.png
 ```
 
 ## Version & updates
@@ -94,7 +95,7 @@ nano-agent -p "Three-panel page, consistent style and palette" \
 ## Build from source (optional)
 Prerequisites: Go 1.21+
 
-```
+```bash
 git clone https://github.com/rkirkendall/nano-agent.git
 cd nano-agent
 go build ./cmd/nano-agent
@@ -111,7 +112,7 @@ Auto-update: on startup, the CLI checks GitHub for a newer version and prints an
 ## Uninstall
 
 ### macOS (Homebrew):
-```
+```bash
 brew uninstall rkirkendall/tap/nano-agent
 brew untap rkirkendall/tap
 ```
