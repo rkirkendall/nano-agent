@@ -1,0 +1,41 @@
+project_name: nano-agent
+
+builds:
+  - id: nano-agent
+    main: ./cmd/nano-agent
+    binary: nano-agent
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - id: default
+    builds: [nano-agent]
+    format: tar.gz
+    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
+    wrap_in_directory: true
+
+brews:
+  - name: nano-agent
+    tap:
+      owner: rickycodes
+      name: homebrew-tap
+    commit_author:
+      name: goreleaser
+      email: noreply@example.com
+    folder: Formula
+    description: Nano Agent — image generation and critique CLI for Gemini
+    homepage: https://github.com/rickycodes/nano-agent
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+
