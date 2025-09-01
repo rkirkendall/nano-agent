@@ -1,0 +1,24 @@
+# Compiled artifacts
+/dist/
+/bin/
+/build/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go
+/go.work
+/go.work.sum
+
+# IDE
+/.idea/
+/.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
