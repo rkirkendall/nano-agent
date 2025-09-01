@@ -4,22 +4,30 @@
 
 Nano Agent is a cross-platform CLI for generating and iteratively improving images with Google's Gemini models using critique-improve loops and emphasis on actionable follow-up guidance.
 
+### Install (binaries)
+
+- macOS / Linux (one‑liner; adds to PATH now and persists for zsh/bash):
+```
+curl -fsSL https://raw.githubusercontent.com/rkirkendall/nano-agent/main/scripts/install.sh | bash && \
+export PATH="$HOME/.local/bin:$PATH" && \
+{ grep -qx 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc" 2>/dev/null || echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"; } && \
+{ grep -qx 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bashrc" 2>/dev/null || echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"; }
+```
+
+- Windows (PowerShell, one‑liner; adds to PATH for current user):
+```powershell
+iwr https://raw.githubusercontent.com/rkirkendall/nano-agent/main/scripts/install.ps1 -UseB | iex; 
+$dest = "$env:ProgramFiles\nano-agent"; 
+if ($env:Path -notlike "*$dest*") { [Environment]::SetEnvironmentVariable('Path', $env:Path + ';' + $dest, 'User') }; 
+$env:Path = [Environment]::GetEnvironmentVariable('Path','User') + ';' + [Environment]::GetEnvironmentVariable('Path','Machine')
+```
+
 ### Features
 - Generate from zero or more input images and a prompt
 - Reusable prompt fragments via `-f/--fragment`
 - Iterative critique-improve loops with escalation of unresolved items
 - Clear severity tags: `[CRITICAL — persisted]`, `[MAJOR]`, `[MINOR]`
 - Imperative targeted actions list to drive the next iteration
-
-### Quick start
-Prerequisites: Go 1.21+
-
-```
-git clone https://github.com/rkirkendall/nano-agent.git
-cd nano-agent
-go build ./cmd/nano-agent
-./nano-agent --help
-```
 
 Set `GEMINI_API_KEY` in your environment (e.g., in a local `.env` or your shell).
 
@@ -61,18 +69,17 @@ export GEMINI_API_KEY=your_key_here
 # Writes to runs/pass1.png and copies to runs/outputs/pass1_improved_1.png, _2.png
 ```
 
-### Releases and installation
-- CI builds binaries for macOS (arm64, amd64), Linux (arm64, amd64), and Windows (amd64) on tagged releases (e.g., `v0.1.0`).
-- One-line install:
-  - macOS/Linux:
-    ```
-    curl -fsSL https://raw.githubusercontent.com/rkirkendall/nano-agent/main/scripts/install.sh | bash
-    ```
-  - Windows (PowerShell):
-    ```powershell
-    iwr https://raw.githubusercontent.com/rkirkendall/nano-agent/main/scripts/install.ps1 -UseB | iex
-    ```
-- Auto-update: on startup, the CLI checks GitHub for a newer version and prints an upgrade hint if available.
+### Build from source (optional)
+Prerequisites: Go 1.21+
+
+```
+git clone https://github.com/rkirkendall/nano-agent.git
+cd nano-agent
+go build ./cmd/nano-agent
+./nano-agent --help
+```
+
+Auto-update: on startup, the CLI checks GitHub for a newer version and prints an upgrade hint if available.
 
 ### Configuration
 - Environment variable: `GEMINI_API_KEY` (required)
