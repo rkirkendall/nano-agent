@@ -35,7 +35,10 @@ export GEMINI_API_KEY=your_key_here
 
 - With reusable fragments (style only):
 ```bash
-nano-agent examples/isometric/input.png -p "Focus on the building" -o examples/isometric/lux-palace.png -f examples/isometric/isometric-style.txt
+nano-agent examples/isometric/input.png \
+-p "Focus on the building" \
+-o examples/isometric/lux-palace.png \
+-f examples/isometric/isometric-style.txt
 ```
 <p align="center">
   <img src="examples/isometric/input.png" alt="nano-agent header" width="50%">
@@ -44,7 +47,8 @@ nano-agent examples/isometric/input.png -p "Focus on the building" -o examples/i
 
 - Generate a comic-styled panel from a prompt (uses the comic style fragment):
 ```bash
-nano-agent -p "Barly the bar cart similing and saying OH YEAH in a dialog bubble." \
+nano-agent examples/comic/characters/barly.png \
+  -p "Barly the bar cart similing and saying OH YEAH in a dialog bubble." \
   -f examples/comic/fragments/comic-style.txt \
   -o examples/comic/panels/two.png
 ```
