@@ -22,3 +22,9 @@ Thumbs.db
 # Env
 .env
 .env.*
+
+# Generated images and iteration outputs
+/output.png
+/outputs/
+*.png
+!header.png
