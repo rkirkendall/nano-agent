@@ -1,6 +1,6 @@
 # nano-agent
 <p align="center">
-  <img src="header.png" alt="nano-agent header" width="50%">
+  <img src="header.png" alt="nano-agent header" width="80%">
 </p>
 
 
