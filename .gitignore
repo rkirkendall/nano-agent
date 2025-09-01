@@ -28,3 +28,7 @@ Thumbs.db
 /outputs/
 *.png
 !header.png
+
+# Always include example assets (override above ignores)
+!/examples/
+!/examples/**
