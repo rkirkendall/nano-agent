@@ -129,7 +129,7 @@ func GenerateImage(ctx context.Context, model string, imagePaths []string, promp
 }
 
 // GenerateCritique using google.golang.org/genai: text out with image input
-func GenerateCritique(ctx context.Context, model string, imagePath string, originalPrompt string, fragments []string, previousCritique string) (string, error) {
+func GenerateCritique(ctx context.Context, model string, imagePath string, originalPrompt string, fragments []string, previousCritique string, inputImagePaths []string) (string, error) {
 	if err := ensureAPIKey(); err != nil {
 		return "", err
 	}
@@ -163,6 +163,26 @@ func GenerateCritique(ctx context.Context, model string, imagePath string, origi
 	}
 	if strings.TrimSpace(previousCritique) != "" {
 		parts = append(parts, genai.NewPartFromText("Previous critique (for follow-on precision):\n"+previousCritique))
+	}
+	// Attach original input images for context, if provided
+	if len(inputImagePaths) > 0 {
+		parts = append(parts, genai.NewPartFromText("Original input images for reference:"))
+		for _, pth := range inputImagePaths {
+			b, err := os.ReadFile(pth)
+			if err != nil {
+				return "", err
+			}
+			im := "image/png"
+			switch strings.ToLower(filepath.Ext(pth)) {
+			case ".jpg", ".jpeg":
+				im = "image/jpeg"
+			case ".webp":
+				im = "image/webp"
+			case ".gif":
+				im = "image/gif"
+			}
+			parts = append(parts, &genai.Part{InlineData: &genai.Blob{MIMEType: im, Data: b}})
+		}
 	}
 	for _, f := range fragments {
 		b, err := os.ReadFile(f)

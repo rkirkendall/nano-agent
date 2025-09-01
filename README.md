@@ -2,25 +2,24 @@
 <img src="header.png" alt="nano-agent header" width="50%">
 
 
-Nano Agent is a cross-platform CLI for generating and iteratively improving images with Google's Gemini models using critique-improve loops and emphasis on actionable follow-up guidance.
+nano-agent is a CLI for generating, editing and compositing images using Google's `gemini-2.5-flash-image-preview` ("Nano Banana") model.
 
-### Install
+## Features
+- Generate images from a prompt directly from the terminal
+- Pass in images to edit or composite with a prompt
+- Support for reusable prompt fragments via `-f/--fragment`
+- Support for critique-improve feedback loops via `-cl/--critique-loops`
 
-- macOS (Homebrew):
+## Install
+
+### macOS (Homebrew):
 ```
 brew tap rkirkendall/tap
 brew install rkirkendall/tap/nano-agent
 ```
 
-- macOS / Linux (direct binary one‑liner; adds to PATH for zsh/bash):
-```
-curl -fsSL https://raw.githubusercontent.com/rkirkendall/nano-agent/main/scripts/install.sh | bash && \
-export PATH="$HOME/.local/bin:$PATH" && \
-{ grep -qx 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc" 2>/dev/null || echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"; } && \
-{ grep -qx 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bashrc" 2>/dev/null || echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"; }
-```
-
-- Windows (PowerShell, one‑liner; adds to PATH for current user):
+### Windows (PowerShell, one‑liner; adds to PATH for current user):
+(lol idk if this actually works but try it?)
 ```powershell
 iwr https://raw.githubusercontent.com/rkirkendall/nano-agent/main/scripts/install.ps1 -UseB | iex; 
 $dest = "$env:ProgramFiles\nano-agent"; 
@@ -28,40 +27,13 @@ if ($env:Path -notlike "*$dest*") { [Environment]::SetEnvironmentVariable('Path'
 $env:Path = [Environment]::GetEnvironmentVariable('Path','User') + ';' + [Environment]::GetEnvironmentVariable('Path','Machine')
 ```
 
-### Uninstall
-
-- macOS / Linux:
-```
-rm -f "$HOME/.local/bin/nano-agent"
-# If you added ~/.local/bin to PATH, you can remove it (optional):
-sed -i '' '/export PATH="\$HOME\/\.local\/bin:\$PATH"/d' "$HOME/.zshrc" 2>/dev/null || true
-sed -i '' '/export PATH="\$HOME\/\.local\/bin:\$PATH"/d' "$HOME/.bashrc" 2>/dev/null || true
-exec $SHELL -l
-```
-
-- Windows (PowerShell):
-```powershell
-$dest = "$env:ProgramFiles\nano-agent"
-if (Test-Path "$dest\nano-agent.exe") { Remove-Item "$dest\nano-agent.exe" -Force }
-# Remove user PATH entry if present (optional):
-$userPath = [Environment]::GetEnvironmentVariable('Path','User').Split(';') | Where-Object { $_ -ne $dest }
-[Environment]::SetEnvironmentVariable('Path', ($userPath -join ';'), 'User')
-```
-
-### Features
-- Generate from zero or more input images and a prompt
-- Reusable prompt fragments via `-f/--fragment`
-- Iterative critique-improve loops with escalation of unresolved items
-- Clear severity tags: `[CRITICAL — persisted]`, `[MAJOR]`, `[MINOR]`
-- Imperative targeted actions list to drive the next iteration
-
 Set `GEMINI_API_KEY` in your environment (e.g., in a local `.env` or your shell). If you don’t have one yet, get a key from [Google AI Studio](https://aistudio.google.com/apikey).
 
 ```
 export GEMINI_API_KEY=your_key_here
 ```
 
-### Usage
+## Usage
 
 - Minimal text-to-image:
 ```
@@ -95,11 +67,11 @@ nano-agent -p "Refine this scene" base1.png base2.png -o runs/pass1.png -cl 2
 # Writes to runs/pass1.png and copies to runs/outputs/pass1_improved_1.png, _2.png
 ```
 
-### Version & updates
+## Version & updates
 - Print version: `nano-agent -v` (or `--version`)
 - macOS updates follow Homebrew: `brew update && brew upgrade rkirkendall/tap/nano-agent`
 
-### Build from source (optional)
+## Build from source (optional)
 Prerequisites: Go 1.21+
 
 ```
@@ -111,11 +83,24 @@ go build ./cmd/nano-agent
 
 Auto-update: on startup, the CLI checks GitHub for a newer version and prints an upgrade hint if available.
 
-### Configuration
+## Configuration
 - Environment variable: `GEMINI_API_KEY` (required)
 - `.env` is auto-read if present; existing environment vars are not overridden.
 
-### Status
-This is an early Go port of the Python prototype. Roadmap includes GoReleaser packaging and expanded tests.
 
+## Uninstall
 
+### macOS (Homebrew):
+```
+brew uninstall rkirkendall/tap/nano-agent
+brew untap rkirkendall/tap
+```
+
+### Windows (PowerShell):
+```powershell
+$dest = "$env:ProgramFiles\nano-agent"
+if (Test-Path "$dest\nano-agent.exe") { Remove-Item "$dest\nano-agent.exe" -Force }
+# Remove user PATH entry if present (optional):
+$userPath = [Environment]::GetEnvironmentVariable('Path','User').Split(';') | Where-Object { $_ -ne $dest }
+[Environment]::SetEnvironmentVariable('Path', ($userPath -join ';'), 'User')
+```

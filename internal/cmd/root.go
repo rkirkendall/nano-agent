@@ -81,7 +81,7 @@ var (
 					if i > 1 {
 						prev = lastCritique
 					}
-					critiqueText, err := ai.GenerateCritique(ctx, model, currentImagePath, prompt, fragments, prev)
+					critiqueText, err := ai.GenerateCritique(ctx, model, currentImagePath, prompt, fragments, prev, images)
 					if err != nil {
 						return fmt.Errorf("critique failed: %w", err)
 					}
