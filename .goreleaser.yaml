@@ -39,7 +39,6 @@ brews:
     repository:
       owner: rkirkendall
       name: homebrew-tap
-    token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
     commit_author:
       name: goreleaser
       email: noreply@example.com
