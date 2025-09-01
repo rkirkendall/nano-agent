@@ -24,11 +24,17 @@ url="https://github.com/$REPO/releases/download/${latest}/${BIN}_${os}_${arch}.t
 curl -fsSL "$url" -o "$tmp/${BIN}.tar.gz"
 tar -C "$tmp" -xzf "$tmp/${BIN}.tar.gz"
 
+# Locate extracted binary (archive wraps in a directory)
+SRC=$(find "$tmp" -type f -name "$BIN" -perm -111 -print -quit)
+if [ -z "$SRC" ]; then
+  echo "Failed to locate extracted $BIN in archive" >&2
+  exit 1
+fi
+
 # Ensure destination exists
 mkdir -p "$DEST_DIR"
 
 # Choose install strategy (BSD install doesn't support -t). Always specify dest filename.
-SRC="$tmp/${BIN}/${BIN}"
 DEST="$DEST_DIR/$BIN"
 
 if command -v install >/dev/null 2>&1; then
