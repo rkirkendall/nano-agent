@@ -2,6 +2,8 @@
 /dist/
 /bin/
 /build/
+/
+nano-agent
 *.exe
 *.dll
 *.so
@@ -17,6 +19,7 @@
 
 # OS
 .DS_Store
+examples/.DS_Store
 Thumbs.db
 
 # Env
