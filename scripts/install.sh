@@ -34,28 +34,16 @@ fi
 # Ensure destination exists
 mkdir -p "$DEST_DIR"
 
-# Choose install strategy (BSD install doesn't support -t). Always specify dest filename.
 DEST="$DEST_DIR/$BIN"
 
-if command -v install >/dev/null 2>&1; then
-  if [ -w "$DEST_DIR" ]; then
-    install -m 0755 "$SRC" "$DEST"
-  elif command -v sudo >/dev/null 2>&1 && [ "${NO_SUDO:-}" != "1" ]; then
-    sudo install -m 0755 "$SRC" "$DEST"
-  else
-    echo "Destination not writable and sudo disabled; set DEST_DIR to a writable directory." >&2
-    exit 1
-  fi
+# Use cp + chmod for maximum portability (BSD/Linux)
+if [ -w "$DEST_DIR" ]; then
+  cp -f "$SRC" "$DEST" && chmod 0755 "$DEST"
+elif command -v sudo >/dev/null 2>&1 && [ "${NO_SUDO:-}" != "1" ]; then
+  sudo cp -f "$SRC" "$DEST" && sudo chmod 0755 "$DEST"
 else
-  # Fallback to cp + chmod
-  if [ -w "$DEST_DIR" ]; then
-    cp -f "$SRC" "$DEST" && chmod 0755 "$DEST"
-  elif command -v sudo >/dev/null 2>&1 && [ "${NO_SUDO:-}" != "1" ]; then
-    sudo cp -f "$SRC" "$DEST" && sudo chmod 0755 "$DEST"
-  else
-    echo "Destination not writable and sudo disabled; set DEST_DIR to a writable directory." >&2
-    exit 1
-  fi
+  echo "Destination not writable and sudo disabled; set DEST_DIR to a writable directory." >&2
+  exit 1
 fi
 
 echo "Installed $BIN to $DEST_DIR/$BIN"
