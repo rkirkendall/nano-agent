@@ -35,36 +35,56 @@ export GEMINI_API_KEY=your_key_here
 
 ## Usage
 
-- Minimal text-to-image:
+- Generate a comic-styled panel from a prompt (uses the comic style fragment):
 ```
-nano-agent -p "Create a picture of a nano banana dish in a fancy restaurant with a Gemini theme"
-```
-
-- Multi-image composition (image-in → image-out):
-```
-nano-agent -p "Blend these into a single collage in a sleek editorial style" img1.png img2.png img3.jpg
+nano-agent -p "Single-panel comic: a playful banana detective in an office" \
+  -f examples/comic/fragments/comic-style.txt \
+  -o examples/comic/panels/panel_prompt.png
 ```
 
-- Character + setting composite (scene directions in prompt):
+- Compose a character into a place to form a panel:
 ```
-nano-agent -p "Place the character on the left third, facing right; blend lighting to match the warm sunset; keep the character's outfit unchanged" character.png setting.png
-```
-
-- With reusable fragments:
-```
-nano-agent -p "Studio portrait" -f fragments/photorealism.txt fragments/portrait_lighting.txt
-```
-
-- Run critique-improve loops (Python parity; `-cl` is supported):
-```
-nano-agent -p "Portrait in an office" office_base.png -cl 3
-# Iteration copies are saved as: outputs/office_improved_1.png, _2.png, _3.png
+nano-agent -p "Compose as a left-facing medium shot; keep character proportions" \
+  examples/comic/characters/dan.png \
+  examples/comic/place/office.png \
+  -f examples/comic/fragments/comic-style.txt \
+  -o examples/comic/panels/panel_dan_office.png
 ```
 
-- Custom output paths (optional `-o`, defaults to output.png):
+- Multi-image composition (two characters + a place):
 ```
-nano-agent -p "Refine this scene" base1.png base2.png -o runs/pass1.png -cl 2
-# Writes to runs/pass1.png and copies to runs/outputs/pass1_improved_1.png, _2.png
+nano-agent -p "Two-character panel; Dan on left, Barly on right; match lighting" \
+  examples/comic/characters/dan.png \
+  examples/comic/characters/barly.png \
+  examples/comic/place/office.png \
+  -f examples/comic/fragments/comic-style.txt \
+  -o examples/comic/panels/panel_dan_barly_office.png
+```
+
+- With reusable fragments (style only):
+```
+nano-agent -p "Comic panel: Dan delivering a punchline" \
+  -f examples/comic/fragments/comic-style.txt \
+  -o examples/comic/panels/panel_gag.png
+```
+
+- Run critique-improve loops on a produced panel (`-cl` is supported):
+```
+nano-agent -p "Tighten line work and add stronger rim light" \
+  examples/comic/panels/panel_dan_office.png \
+  -cl 3 \
+  -o examples/comic/panels/panel_dan_office_v2.png
+# Iterations are saved to: examples/comic/panels/outputs/panel_dan_office_v2_improved_1.png, _2.png, _3.png
+```
+
+- Custom output path for multi-panel inputs (defaults to output.png if omitted):
+```
+nano-agent -p "Three-panel page, consistent style and palette" \
+  examples/comic/panels/one.png \
+  examples/comic/panels/two.png \
+  examples/comic/panels/three.png \
+  -f examples/comic/fragments/comic-style.txt \
+  -o examples/comic/panels/page_comp.png
 ```
 
 ## Version & updates
