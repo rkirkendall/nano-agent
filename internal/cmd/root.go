@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rkirkendall/nano-agent/internal/ai"
+	"github.com/rkirkendall/nano-agent/internal/version"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -20,12 +21,18 @@ var (
 	prompt        string
 	output        string
 	critiqueLoops int
+	versionFlag   bool
 
 	rootCmd = &cobra.Command{
 		Use:   "nano-agent [images...]",
 		Short: "Nano Agent — image generation and critique CLI for Gemini",
 		Long:  "Nano Agent is a cross-platform CLI that generates and iteratively improves images using Google's Gemini models with critique-improve loops.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// --version/-v: print version and exit
+			if versionFlag {
+				fmt.Fprintln(cmd.OutOrStdout(), version.Version)
+				return nil
+			}
 			// Self-update check (best-effort, non-blocking)
 			maybeSelfUpdate(cmd)
 			// Treat positional args as image paths (Python parity)
@@ -151,9 +158,10 @@ func init() {
 
 	rootCmd.Flags().StringSliceVar(&images, "images", []string{}, "Zero or more path(s) to input image files")
 	rootCmd.Flags().StringSliceVarP(&fragments, "fragment", "f", []string{}, "One or more text files to append as reusable prompt fragments")
-	rootCmd.Flags().StringVar(&prompt, "prompt", "", "Text prompt guiding the generation (required)")
+	rootCmd.Flags().StringVarP(&prompt, "prompt", "p", "", "Text prompt guiding the generation (required)")
 	rootCmd.Flags().StringVarP(&output, "output", "o", "output.png", "Path to save the generated PNG image")
 	rootCmd.Flags().IntVar(&critiqueLoops, "critique-loops", 0, "Number of critique-improve loops to run (default: 0)")
+	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
 }
 
 func initConfig() {

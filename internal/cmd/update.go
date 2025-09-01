@@ -49,10 +49,12 @@ func maybeSelfUpdate(out interface{ Println(a ...any) }) {
 		return
 	}
 
-	// Suggest an install one-liner based on OS
+	// Suggest an upgrade/install one-liner based on OS (prefer Homebrew on macOS)
 	var hint string
 	switch runtime.GOOS {
-	case "darwin", "linux":
+	case "darwin":
+		hint = "brew update && brew upgrade rkirkendall/tap/nano-agent"
+	case "linux":
 		hint = fmt.Sprintf("curl -fsSL https://raw.githubusercontent.com/%s/%s/main/scripts/install.sh | bash", repoOwner, repoName)
 	case "windows":
 		hint = fmt.Sprintf("powershell -ExecutionPolicy Bypass -c \"iwr https://raw.githubusercontent.com/%s/%s/main/scripts/install.ps1 -UseB | iex\"", repoOwner, repoName)

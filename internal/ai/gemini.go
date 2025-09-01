@@ -36,7 +36,7 @@ func ensureAPIKey() error {
 	loadEnvIfMissing()
 	k := strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
 	if k == "" {
-		return errors.New("GEMINI_API_KEY is not set")
+		return errors.New("GEMINI_API_KEY is not set. Get one at https://aistudio.google.com/apikey and export GEMINI_API_KEY before running.")
 	}
 	// Force the genai client to use GEMINI_API_KEY by mapping it and removing GOOGLE_API_KEY.
 	_ = os.Unsetenv("GOOGLE_API_KEY")
