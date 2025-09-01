@@ -22,17 +22,7 @@ archives:
     name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
     wrap_in_directory: true
 
-brews:
-  - name: nano-agent
-    tap:
-      owner: rickycodes
-      name: homebrew-tap
-    commit_author:
-      name: goreleaser
-      email: noreply@example.com
-    folder: Formula
-    description: Nano Agent — image generation and critique CLI for Gemini
-    homepage: https://github.com/rickycodes/nano-agent
+# Homebrew tap config removed for now; can be re-added later with v2 schema fields
 
 checksum:
   name_template: 'checksums.txt'
