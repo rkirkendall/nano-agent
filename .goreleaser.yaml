@@ -34,4 +34,16 @@ changelog:
       - '^docs:'
       - '^test:'
 
+brews:
+  - name: nano-agent
+    repository:
+      owner: rkirkendall
+      name: homebrew-tap
+    commit_author:
+      name: goreleaser
+      email: noreply@example.com
+    directory: Formula
+    description: Nano Agent — image generation and critique CLI for Gemini
+    homepage: https://github.com/rkirkendall/nano-agent
+
 
