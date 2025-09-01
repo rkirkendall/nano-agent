@@ -8,10 +8,15 @@ builds:
       - CGO_ENABLED=0
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/rkirkendall/nano-agent/internal/version.Version={{.Version}}
 
 archives:
   - id: default
     builds: [nano-agent]
+    format_overrides:
+      - goos: windows
+        format: zip
     format: tar.gz
     name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
     wrap_in_directory: true

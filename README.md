@@ -1,6 +1,6 @@
-![nano-agent header](header.png)
+# nano-agent
+<img src="header.png" alt="nano-agent header" width="50%">
 
-## nano-agent
 
 Nano Agent is a cross-platform CLI for generating and iteratively improving images with Google's Gemini models using critique-improve loops and emphasis on actionable follow-up guidance.
 
@@ -15,7 +15,7 @@ Nano Agent is a cross-platform CLI for generating and iteratively improving imag
 Prerequisites: Go 1.21+
 
 ```
-git clone https://github.com/rickycodes/nano-agent.git
+git clone https://github.com/rkirkendall/nano-agent.git
 cd nano-agent
 go build ./cmd/nano-agent
 ./nano-agent --help
@@ -61,9 +61,18 @@ export GEMINI_API_KEY=your_key_here
 # Writes to runs/pass1.png and copies to runs/outputs/pass1_improved_1.png, _2.png
 ```
 
-Notes:
-- You can also provide images via `--images`, but positional args are preferred.
-- The tool overwrites the specified `-o` file each loop and writes iteration copies under an adjacent `outputs/` directory.
+### Releases and installation
+- CI builds binaries for macOS (arm64, amd64), Linux (arm64, amd64), and Windows (amd64) on tagged releases (e.g., `v0.1.0`).
+- One-line install:
+  - macOS/Linux:
+    ```
+    curl -fsSL https://raw.githubusercontent.com/rkirkendall/nano-agent/main/scripts/install.sh | bash
+    ```
+  - Windows (PowerShell):
+    ```powershell
+    iwr https://raw.githubusercontent.com/rkirkendall/nano-agent/main/scripts/install.ps1 -UseB | iex
+    ```
+- Auto-update: on startup, the CLI checks GitHub for a newer version and prints an upgrade hint if available.
 
 ### Configuration
 - Environment variable: `GEMINI_API_KEY` (required)
