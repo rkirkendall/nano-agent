@@ -22,6 +22,26 @@ if ($env:Path -notlike "*$dest*") { [Environment]::SetEnvironmentVariable('Path'
 $env:Path = [Environment]::GetEnvironmentVariable('Path','User') + ';' + [Environment]::GetEnvironmentVariable('Path','Machine')
 ```
 
+### Uninstall
+
+- macOS / Linux:
+```
+rm -f "$HOME/.local/bin/nano-agent"
+# If you added ~/.local/bin to PATH, you can remove it (optional):
+sed -i '' '/export PATH="\$HOME\/\.local\/bin:\$PATH"/d' "$HOME/.zshrc" 2>/dev/null || true
+sed -i '' '/export PATH="\$HOME\/\.local\/bin:\$PATH"/d' "$HOME/.bashrc" 2>/dev/null || true
+exec $SHELL -l
+```
+
+- Windows (PowerShell):
+```powershell
+$dest = "$env:ProgramFiles\nano-agent"
+if (Test-Path "$dest\nano-agent.exe") { Remove-Item "$dest\nano-agent.exe" -Force }
+# Remove user PATH entry if present (optional):
+$userPath = [Environment]::GetEnvironmentVariable('Path','User').Split(';') | Where-Object { $_ -ne $dest }
+[Environment]::SetEnvironmentVariable('Path', ($userPath -join ';'), 'User')
+```
+
 ### Features
 - Generate from zero or more input images and a prompt
 - Reusable prompt fragments via `-f/--fragment`
