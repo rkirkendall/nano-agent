@@ -3,3 +3,5 @@ Illustrated in the artistic style of 1960s pop-art.
 Pay close attention to the following aspects when compositing and editing images together:
 1. Object scale: Object scale should look photorealistic, even if the illustration style is not.
 2. Collision detection and object placement. If rendering a character with his feet on a desk, the feet should not be on top of another object on the desk like a typewriter or a mug.
+
+Places should be depicted as fully furnished, but with no people in the frame. Use a warm mid-century modern color palette.

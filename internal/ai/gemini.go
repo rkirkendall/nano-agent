@@ -749,12 +749,13 @@ func GenerateCritique(ctx context.Context, model string, imagePath string, origi
 // ImageThread maintains a conversation history for iterative image generation so
 // that critique prompts can be appended to the original generation thread.
 type ImageThread struct {
-	model         string
-	useOpenRouter bool
-	orClient      openai.Client
-	orMessages    []any
-	geminiClient  *genai.Client
-	geminiHistory []*genai.Content
+	model                   string
+	useOpenRouter           bool
+	orClient                openai.Client
+	orMessages              []any
+	geminiClient            *genai.Client
+	geminiHistory           []*genai.Content
+	originalInputImagePaths []string
 }
 
 // StartImageThreadAndGenerate creates a new image generation thread with the initial
@@ -764,7 +765,7 @@ func StartImageThreadAndGenerate(ctx context.Context, model string, imagePaths [
 	if err := ensureAPIKey(); err != nil {
 		return nil, nil, err
 	}
-	thread := &ImageThread{model: model, useOpenRouter: isOpenRouterEnabled()}
+	thread := &ImageThread{model: model, useOpenRouter: isOpenRouterEnabled(), originalInputImagePaths: imagePaths}
 	if thread.useOpenRouter {
 		thread.orClient = newOpenRouterClient()
 		// Build initial user message
@@ -831,7 +832,7 @@ func StartImageThreadAndGenerate(ctx context.Context, model string, imagePaths [
 // also attached for model reference. Returns the newly generated PNG bytes.
 func (t *ImageThread) AddUserMessageAndGenerate(ctx context.Context, text string, imagePath string) ([]byte, error) {
 	if t.useOpenRouter {
-		parts := make([]any, 0, 2)
+		parts := make([]any, 0, 2+len(t.originalInputImagePaths))
 		if s := strings.TrimSpace(text); s != "" {
 			parts = append(parts, map[string]any{"type": "text", "text": s})
 		}
@@ -841,6 +842,19 @@ func (t *ImageThread) AddUserMessageAndGenerate(ctx context.Context, text string
 				parts = append(parts, map[string]any{
 					"type":      "image_url",
 					"image_url": map[string]any{"url": toDataURL(guessMIME(imagePath), bimg)},
+				})
+			}
+		}
+		// Re-attach original input images on every iteration
+		for _, p := range t.originalInputImagePaths {
+			if strings.TrimSpace(p) == "" {
+				continue
+			}
+			bimg, err := os.ReadFile(p)
+			if err == nil && len(bimg) > 0 {
+				parts = append(parts, map[string]any{
+					"type":      "image_url",
+					"image_url": map[string]any{"url": toDataURL(guessMIME(p), bimg)},
 				})
 			}
 		}
@@ -861,6 +875,17 @@ func (t *ImageThread) AddUserMessageAndGenerate(ctx context.Context, text string
 		b, err := os.ReadFile(imagePath)
 		if err == nil && len(b) > 0 {
 			mime := guessMIME(imagePath)
+			partsGen = append(partsGen, &genai.Part{InlineData: &genai.Blob{MIMEType: mime, Data: b}})
+		}
+	}
+	// Re-attach original input images on every iteration
+	for _, p := range t.originalInputImagePaths {
+		if strings.TrimSpace(p) == "" {
+			continue
+		}
+		b, err := os.ReadFile(p)
+		if err == nil && len(b) > 0 {
+			mime := guessMIME(p)
 			partsGen = append(partsGen, &genai.Part{InlineData: &genai.Blob{MIMEType: mime, Data: b}})
 		}
 	}
