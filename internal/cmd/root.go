@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -100,9 +101,21 @@ var (
 					fmt.Fprintln(cmd.OutOrStdout(), "Critique feedback:")
 					fmt.Fprintln(cmd.OutOrStdout(), critiqueText)
 
-					improvementPrompt := generate.BuildImprovementPrompt(prompt, critiqueText)
+					// Attempt to extract strict JSON actions block if present
+					actionsJSON := extractJSONActions(critiqueText)
+					var improvementPrompt string
+					if actionsJSON != "" {
+						improvementPrompt = generate.BuildImprovementPromptWithActions(prompt, critiqueText, actionsJSON)
+					} else {
+						improvementPrompt = generate.BuildImprovementPrompt(prompt, critiqueText)
+					}
+					// Re-attach fragments explicitly by composing them into the prompt each loop
+					effectivePrompt := generate.BuildEffectivePrompt(improvementPrompt, fragments)
+					if verbose {
+						fmt.Fprintf(cmd.OutOrStdout(), "Attaching %d original input images and %d fragments this iteration\n", len(images), len(fragments))
+					}
 
-					imgBytes, err := thread.AddUserMessageAndGenerate(ctx, improvementPrompt, currentImagePath)
+					imgBytes, err := thread.AddUserMessageAndGenerate(ctx, effectivePrompt, currentImagePath)
 					if err != nil {
 						return fmt.Errorf("improvement generation failed: %w", err)
 					}
@@ -194,4 +207,36 @@ func initConfig() {
 		}
 	}
 	_ = viper.ReadInConfig()
+}
+
+// extractJSONActions tries to locate a valid JSON object within s that
+// contains an "edits" array or "keep_notes". Returns the raw JSON substring
+// if found, otherwise an empty string.
+func extractJSONActions(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	// naive scan: attempt to unmarshal balanced substrings between braces
+	bs := []byte(s)
+	for i := 0; i < len(bs); i++ {
+		if bs[i] != '{' {
+			continue
+		}
+		for j := len(bs); j > i; j-- {
+			if bs[j-1] != '}' {
+				continue
+			}
+			var m map[string]any
+			if json.Unmarshal(bs[i:j], &m) == nil {
+				if _, ok := m["edits"]; ok {
+					return string(bs[i:j])
+				}
+				if _, ok := m["keep_notes"]; ok {
+					return string(bs[i:j])
+				}
+			}
+		}
+	}
+	return ""
 }
