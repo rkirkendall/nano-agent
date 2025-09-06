@@ -11,6 +11,8 @@ nano-agent is a CLI for generating, editing and compositing images using Google'
 - Pass in images to edit or composite with a prompt
 - Support for reusable prompt fragments via `-f/--fragment`
 - Support for critique-improve feedback loops via `-cl/--critique-loops`
+- Threaded critique-improve loops that append feedback to the original generation thread (Gemini + OpenRouter) to reduce artifacts/pixelation across iterations
+- Verbose mode `-V/--verbose` logs per-iteration file size and SHA-256 so you can verify the latest image is being critiqued
 
 ## Install
 
@@ -88,8 +90,10 @@ nano-agent -p "Two-character panel in the office; Dan on right, Barly on left. D
 nano-agent -p "Tighten line work and add stronger rim light" \
   examples/comic/panels/panel_dan_office.png \
   -cl 3 \
+  -V \
   -o examples/comic/panels/panel_dan_office_v2.png
 # Iterations are saved to: examples/comic/panels/outputs/panel_dan_office_v2_improved_1.png, _2.png, _3.png
+# With -V, each iteration logs the critiqued and updated image sizes and SHA-256
 ```
 
 ## Version & updates
@@ -109,20 +113,6 @@ go build ./cmd/nano-agent
 Auto-update: on startup, the CLI checks GitHub for a newer version and prints an upgrade hint if available.
 
 ## Contributing
-
-### Code structure map
-
-- `cmd/nano-agent/main.go`: CLI entry point
-- `internal/cmd/root.go`: Cobra command, flags, argument normalization, CLI loop
-- `internal/ai/gemini.go`: Provider selection, OpenRouter transport, Gemini SDK calls, parsing
-- `internal/generate/`: prompt builders for generation and improvement
-  - `prompt.go`: merges main prompt with fragments
-  - `improve.go`: builds improvement prompt from original prompt and critique
-- `internal/critique/`: critique prompt templates and follow-up helpers
-  - `prompt.go`: unified critique instruction text
-  - `followup.go`: helpers for follow-up logic (if used)
-- `internal/version/`: version string
-
 
 ## Configuration
 - Environment variable: `GEMINI_API_KEY` (required for Google Gemini)
@@ -156,14 +146,18 @@ nano-agent -p "Generate a beautiful sunset over mountains" -o output-openrouter.
 
 Notes:
 - The default model remains `gemini-2.5-flash-image-preview` and works via OpenRouter without changes.
+- When `USE_OPENROUTER=1`, `OPENROUTER_MODEL` takes precedence over the CLI `--model` flag.
 - Image inputs are supported; pass one or more `--images` paths or positional image paths as shown in the examples above.
 - Critique loops (`-cl/--critique-loops`) are supported with OpenRouter as well.
 
 ### Troubleshooting
-- If you see an HTML response from OpenRouter, ensure you’re hitting the API endpoint (`https://openrouter.ai/api/v1`) and that the `Authorization` and `Content-Type: application/json` headers are set. `.env` loading is supported, but shell exports take precedence.
-- If you get a 402 credits error, reduce output length (the tool already requests reasonable token budgets) or upgrade credits in OpenRouter.
+- If you see an HTML response (e.g., Cloudflare 503), it indicates a temporary provider outage. Retry after a minute, switch models, or unset `USE_OPENROUTER` to use the native Gemini SDK.
+- To debug OpenRouter requests, set `OPENROUTER_DEBUG=1` to print request/response diagnostics to stderr.
+- If critiques feel repetitive, run with `-V` to confirm each loop critiques the latest image (sizes and SHA-256 will change per iteration if updates apply).
+- If you get a 402 credits error, reduce output length or upgrade credits in OpenRouter.
 
 ## Uninstall
 
 ### macOS (Homebrew):
+```
 ```
