@@ -132,9 +132,9 @@ You can route all generation and critique through OpenRouter instead of Google G
 
 - Example (bash):
 ```bash
-export USE_OPENROUTER=1
+export USE_OPENROUTER=1 # 1 to turn on, 0 to turn off
 export OPENROUTER_API_KEY=your_openrouter_key
-# optional model override (defaults to google/gemini-2.5-flash-image-preview:free)
+# optional model override (defaults to google/gemini-2.5-flash-image-preview)
 # export OPENROUTER_MODEL="google/gemini-2.5-flash-image-preview"
 # optional:
 # export OPENROUTER_SITE=https://your.app
