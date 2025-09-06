@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rkirkendall/nano-agent/internal/ai"
+	"github.com/rkirkendall/nano-agent/internal/generate"
 	"github.com/rkirkendall/nano-agent/internal/version"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -42,6 +43,14 @@ var (
 			if strings.TrimSpace(prompt) == "" {
 				return fmt.Errorf("--prompt is required")
 			}
+			// Validate that fragments are text files, not images
+			for _, f := range fragments {
+				ext := strings.ToLower(filepath.Ext(f))
+				switch ext {
+				case ".png", ".jpg", ".jpeg", ".webp", ".gif":
+					return fmt.Errorf("--fragment expects text files; got image file: %s", f)
+				}
+			}
 			if output == "" {
 				output = "output.png"
 			}
@@ -74,21 +83,16 @@ var (
 				_ = os.MkdirAll(outputsDir, 0o755)
 
 				currentImagePath := baseOutputPath
-				var lastCritique string
 				for i := 1; i <= critiqueLoops; i++ {
 					fmt.Fprintf(cmd.OutOrStdout(), "\n=== Critique loop %d/%d ===\n", i, critiqueLoops)
-					prev := ""
-					if i > 1 {
-						prev = lastCritique
-					}
-					critiqueText, err := ai.GenerateCritique(ctx, model, currentImagePath, prompt, fragments, prev, images)
+					critiqueText, err := ai.GenerateCritique(ctx, model, currentImagePath, prompt, fragments, images)
 					if err != nil {
 						return fmt.Errorf("critique failed: %w", err)
 					}
 					fmt.Fprintln(cmd.OutOrStdout(), "Critique feedback:")
 					fmt.Fprintln(cmd.OutOrStdout(), critiqueText)
 
-					improvementPrompt := "Apply the following critique to improve this image. Prioritize items tagged [CRITICAL — persisted] first, then [MAJOR], then [MINOR]. Use decisive, localized fixes and avoid regressions on items marked done. Then implement the 'Targeted actions to apply now' if present. Critique follows:\n\n" + critiqueText
+					improvementPrompt := generate.BuildImprovementPrompt(prompt, critiqueText)
 
 					imgBytes, err := ai.GenerateImage(ctx, model, []string{currentImagePath}, improvementPrompt, fragments)
 					if err != nil {
@@ -108,7 +112,6 @@ var (
 							fmt.Fprintf(cmd.OutOrStdout(), "Iteration copy saved at: %s\n", copyPath)
 						}
 					}
-					lastCritique = critiqueText
 				}
 			}
 			return nil
@@ -153,7 +156,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.nano-agent.yaml)")
-	rootCmd.PersistentFlags().String("model", "gemini-2.5-flash-image-preview", "Model to use for generation and critique")
+	rootCmd.PersistentFlags().String("model", "gemini-2.5-flash-image-preview:free", "Model to use for generation and critique")
 	viper.BindPFlag("model", rootCmd.PersistentFlags().Lookup("model"))
 
 	rootCmd.Flags().StringSliceVar(&images, "images", []string{}, "Zero or more path(s) to input image files")

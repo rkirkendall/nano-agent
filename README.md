@@ -108,24 +108,62 @@ go build ./cmd/nano-agent
 
 Auto-update: on startup, the CLI checks GitHub for a newer version and prints an upgrade hint if available.
 
+## Contributing
+
+### Code structure map
+
+- `cmd/nano-agent/main.go`: CLI entry point
+- `internal/cmd/root.go`: Cobra command, flags, argument normalization, CLI loop
+- `internal/ai/gemini.go`: Provider selection, OpenRouter transport, Gemini SDK calls, parsing
+- `internal/generate/`: prompt builders for generation and improvement
+  - `prompt.go`: merges main prompt with fragments
+  - `improve.go`: builds improvement prompt from original prompt and critique
+- `internal/critique/`: critique prompt templates and follow-up helpers
+  - `prompt.go`: unified critique instruction text
+  - `followup.go`: helpers for follow-up logic (if used)
+- `internal/version/`: version string
+
+
 ## Configuration
-- Environment variable: `GEMINI_API_KEY` (required)
+- Environment variable: `GEMINI_API_KEY` (required for Google Gemini)
 - `.env` is auto-read if present; existing environment vars are not overridden.
 
+### OpenRouter (optional)
+You can route all generation and critique through OpenRouter instead of Google Gemini.
+
+- Set the following environment variables:
+  - `USE_OPENROUTER=1` — enables OpenRouter routing
+  - `OPENROUTER_API_KEY` — your OpenRouter API key
+  - `OPENROUTER_MODEL` — optional override of the default model used via OpenRouter
+  - Optional:
+    - `OPENROUTER_BASE_URL` — defaults to `https://openrouter.ai/api/v1`
+    - `OPENROUTER_SITE` — sets HTTP-Referer header (default `http://localhost`)
+    - `OPENROUTER_TITLE` — sets X-Title header (default `nano-agent`)
+
+- Example (bash):
+```bash
+export USE_OPENROUTER=1
+export OPENROUTER_API_KEY=your_openrouter_key
+# optional model override (defaults to google/gemini-2.5-flash-image-preview:free)
+# export OPENROUTER_MODEL="google/gemini-2.5-flash-image-preview"
+# optional:
+# export OPENROUTER_SITE=https://your.app
+# export OPENROUTER_TITLE="nano-agent"
+
+# Generate an image (OpenRouter chat/completions; images saved as PNG)
+nano-agent -p "Generate a beautiful sunset over mountains" -o output-openrouter.png
+```
+
+Notes:
+- The default model remains `gemini-2.5-flash-image-preview` and works via OpenRouter without changes.
+- Image inputs are supported; pass one or more `--images` paths or positional image paths as shown in the examples above.
+- Critique loops (`-cl/--critique-loops`) are supported with OpenRouter as well.
+
+### Troubleshooting
+- If you see an HTML response from OpenRouter, ensure you’re hitting the API endpoint (`https://openrouter.ai/api/v1`) and that the `Authorization` and `Content-Type: application/json` headers are set. `.env` loading is supported, but shell exports take precedence.
+- If you get a 402 credits error, reduce output length (the tool already requests reasonable token budgets) or upgrade credits in OpenRouter.
 
 ## Uninstall
 
 ### macOS (Homebrew):
-```bash
-brew uninstall rkirkendall/tap/nano-agent
-brew untap rkirkendall/tap
-```
-
-### Windows (PowerShell):
-```powershell
-$dest = "$env:ProgramFiles\nano-agent"
-if (Test-Path "$dest\nano-agent.exe") { Remove-Item "$dest\nano-agent.exe" -Force }
-# Remove user PATH entry if present (optional):
-$userPath = [Environment]::GetEnvironmentVariable('Path','User').Split(';') | Where-Object { $_ -ne $dest }
-[Environment]::SetEnvironmentVariable('Path', ($userPath -join ';'), 'User')
 ```
