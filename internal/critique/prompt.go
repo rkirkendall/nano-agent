@@ -7,11 +7,17 @@ import "strings"
 // without referencing what has already been done in prior iterations.
 func BuildCritiqueInstruction() string {
 	var b strings.Builder
-	b.WriteString("You are an expert image forensics and quality reviewer. Given the latest generated image (not the original) and the original text prompt, write a concise critique that reflects what is still missing or incorrect right now.\n\n")
-	b.WriteString("Be iteration-aware: compare the current image against the original prompt and the likely prior intent, and only call out items that remain unresolved. If an item appears fixed, do not restate it.\n\n")
-	b.WriteString("- Identify visual artifacts, anatomical errors, texture inconsistencies, lighting/shadow mismatches, reflections, perspective errors, or other realism issues.\n")
-	b.WriteString("- Point out mismatches between the image and the prompt.\n")
-	b.WriteString("- Provide concrete, targeted suggestions to fix the issues in the next image iteration.\n\n")
-	b.WriteString("Return plain text.")
+	b.WriteString("You are an expert image QA reviewer. Given the latest generated image (not the original), the original prompt, and any input reference images, return ONLY a single valid JSON object describing exactly what to KEEP and what to CHANGE next. No prose outside JSON.\n\n")
+	b.WriteString("Use this exact schema:\n\n")
+	b.WriteString("{")
+	b.WriteString("\n  \"keep_notes\": [string, ...],")
+	b.WriteString("\n  \"summary_keep\": [string, ...],")
+	b.WriteString("\n  \"summary_change\": [string, ...],")
+	b.WriteString("\n  \"edits\": [\n    {\n      \"id\": string,\n      \"target\": {\n        \"type\": \"object\"|\"region\"|\"global\",\n        \"label\": string,\n        \"bbox\": { \"x\": number, \"y\": number, \"w\": number, \"h\": number } | null,\n        \"points\": [ { \"x\": number, \"y\": number }, ... ] | null\n      },\n      \"priority\": \"CRITICAL\"|\"MAJOR\"|\"MINOR\",\n      \"instruction\": string,\n      \"rationale\": string,\n      \"done_when\": string\n    }\n  ]\n}")
+	b.WriteString("\n\nRules:\n")
+	b.WriteString("- JSON must be strictly valid and parseable; no markdown code fences.\n")
+	b.WriteString("- No text outside the JSON object.\n")
+	b.WriteString("- Coordinates normalized 0-1 relative to image width/height.\n")
+	b.WriteString("- Max 8 edits; prioritize CRITICAL then MAJOR then MINOR.\n")
 	return b.String()
 }
