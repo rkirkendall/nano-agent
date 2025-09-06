@@ -1,3 +1,6 @@
+# Local experiments and generated lab artifacts
+lab/
+
 .cursor/
 # Compiled artifacts
 /dist/

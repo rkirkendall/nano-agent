@@ -11,6 +11,7 @@ nano-agent is a CLI for generating, editing and compositing images using Google'
 - Pass in images to edit or composite with a prompt
 - Support for reusable prompt fragments via `-f/--fragment`
 - Support for critique-improve feedback loops via `-cl/--critique-loops`
+- Transparent background post-process via `-t/--transparent` (solid white background keyed to alpha)
 
 ## Install
 
@@ -92,6 +93,17 @@ nano-agent -p "Tighten line work and add stronger rim light" \
 # Iterations are saved to: examples/comic/panels/outputs/panel_dan_office_v2_improved_1.png, _2.png, _3.png
 ```
 
+- Generate with transparent background (flood-fill from border):
+```bash
+nano-agent examples/isometric/input.png \
+  -p "Focus on the building" \
+  -f examples/isometric/isometric-style.txt \
+  -t \
+  -o examples/isometric/lux-palace.png
+```
+Notes:
+- `-t/--transparent` adds a hint to render on solid white and post-processes the output using ImageMagick to make only the outer white background transparent (border flood-fill). Interior whites remain intact.
+
 ## Version & updates
 - Print version: `nano-agent -v` (or `--version`)
 - macOS updates follow Homebrew: `brew update && brew upgrade rkirkendall/tap/nano-agent`
@@ -162,6 +174,12 @@ Notes:
 ### Troubleshooting
 - If you see an HTML response from OpenRouter, ensure you’re hitting the API endpoint (`https://openrouter.ai/api/v1`) and that the `Authorization` and `Content-Type: application/json` headers are set. `.env` loading is supported, but shell exports take precedence.
 - If you get a 402 credits error, reduce output length (the tool already requests reasonable token budgets) or upgrade credits in OpenRouter.
+
+### Dependencies for transparency
+- The `-t/--transparent` feature requires ImageMagick (`magick` or `convert`).
+- macOS (Homebrew): `brew install imagemagick`
+- Debian/Ubuntu: `sudo apt-get update && sudo apt-get install -y imagemagick`
+- The install script attempts to install ImageMagick automatically when missing.
 
 ## Uninstall
 

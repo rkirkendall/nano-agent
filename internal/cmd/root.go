@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -23,6 +24,7 @@ var (
 	output        string
 	critiqueLoops int
 	versionFlag   bool
+	transparent   bool
 
 	rootCmd = &cobra.Command{
 		Use:   "nano-agent [images...]",
@@ -63,7 +65,18 @@ var (
 			ctx := context.Background()
 			model := viper.GetString("model")
 
-			imgBytes, err := ai.GenerateImage(ctx, model, images, prompt, fragments)
+			// If transparent requested, augment prompt with a white-background instruction
+			effPrompt := prompt
+			if transparent {
+				hint := "Please render the subject with a solid white background around the subject; avoid interior transparency."
+				if strings.TrimSpace(effPrompt) == "" {
+					effPrompt = hint
+				} else {
+					effPrompt = effPrompt + "\n\n" + hint
+				}
+			}
+
+			imgBytes, err := ai.GenerateImage(ctx, model, images, effPrompt, fragments)
 			if err != nil {
 				return err
 			}
@@ -74,6 +87,14 @@ var (
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Generated image saved at: %s\n", output)
+
+			// Post-process to transparent background if requested
+			if transparent {
+				if err := makeBackgroundTransparent(output); err != nil {
+					return fmt.Errorf("post-process transparency failed: %w", err)
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "Applied transparent background post-process: %s\n", output)
+			}
 
 			if critiqueLoops > 0 {
 				baseOutputPath := output
@@ -165,6 +186,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&output, "output", "o", "output.png", "Path to save the generated PNG image")
 	rootCmd.Flags().IntVar(&critiqueLoops, "critique-loops", 0, "Number of critique-improve loops to run (default: 0)")
 	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
+	rootCmd.Flags().BoolVarP(&transparent, "transparent", "t", false, "Request white background and post-process to transparent background")
 }
 
 func initConfig() {
@@ -179,4 +201,49 @@ func initConfig() {
 		}
 	}
 	_ = viper.ReadInConfig()
+}
+
+// makeBackgroundTransparent performs a flood-fill from the border to convert a white background
+// to transparency using ImageMagick. Prefers IM7 `magick` and falls back to IM6 `convert`.
+func makeBackgroundTransparent(path string) error {
+	dir := filepath.Dir(path)
+	base := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	tmp := filepath.Join(dir, base+"__tmp_transparent.png")
+
+	fuzz := strings.TrimSpace(os.Getenv("NANO_BG_FUZZ"))
+	if fuzz == "" {
+		fuzz = "6%"
+	}
+	// Args: add 1px white border, flood-fill from (1,1) to none, shave border
+	// Use IM7-friendly draw primitive: 'color x,y floodfill'
+	args := []string{path, "-colorspace", "sRGB", "-alpha", "set", "-bordercolor", "white", "-border", "1",
+		"-fuzz", fuzz, "-fill", "none", "-draw", "color 1,1 floodfill", "-shave", "1x1", tmp}
+
+	var cmd *exec.Cmd
+	if _, err := exec.LookPath("magick"); err == nil {
+		cmd = exec.Command("magick", args...)
+	} else if _, err := exec.LookPath("convert"); err == nil {
+		cmd = exec.Command("convert", args...)
+	} else {
+		return fmt.Errorf("ImageMagick not installed: install via Homebrew (brew install imagemagick) or apt (sudo apt-get install -y imagemagick)")
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		b, rerr := os.ReadFile(tmp)
+		if rerr != nil {
+			_ = os.Remove(tmp)
+			return err
+		}
+		if werr := os.WriteFile(path, b, 0o644); werr != nil {
+			_ = os.Remove(tmp)
+			return err
+		}
+		_ = os.Remove(tmp)
+	}
+	return nil
 }

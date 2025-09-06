@@ -54,3 +54,30 @@ case ":$PATH:" in
   *) echo "Add to PATH: export PATH=\"$DEST_DIR:\$PATH\"";;
 esac
 
+# Ensure ImageMagick (for background removal) is installed
+if ! command -v magick >/dev/null 2>&1 && ! command -v convert >/dev/null 2>&1; then
+  case "$os" in
+    darwin)
+      if command -v brew >/dev/null 2>&1; then
+        echo "ImageMagick not found; installing via Homebrew..."
+        brew update || true
+        brew install imagemagick || true
+      else
+        echo "ImageMagick not found and Homebrew is unavailable. Install with: brew install imagemagick" >&2
+      fi
+      ;;
+    linux)
+      if command -v apt-get >/dev/null 2>&1; then
+        echo "ImageMagick not found; installing via apt-get..."
+        sudo apt-get update -y || true
+        sudo apt-get install -y imagemagick || true
+      else
+        echo "ImageMagick not found. Please install it via your package manager (e.g., apt-get install -y imagemagick)." >&2
+      fi
+      ;;
+    *)
+      echo "ImageMagick not found. Please install it via your OS package manager." >&2
+      ;;
+  esac
+fi
+
