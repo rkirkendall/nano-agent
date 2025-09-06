@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -23,6 +24,7 @@ var (
 	output        string
 	critiqueLoops int
 	versionFlag   bool
+	verbose       bool
 
 	rootCmd = &cobra.Command{
 		Use:   "nano-agent [images...]",
@@ -63,7 +65,7 @@ var (
 			ctx := context.Background()
 			model := viper.GetString("model")
 
-			imgBytes, err := ai.GenerateImage(ctx, model, images, prompt, fragments)
+			thread, imgBytes, err := ai.StartImageThreadAndGenerate(ctx, model, images, prompt, fragments)
 			if err != nil {
 				return err
 			}
@@ -85,6 +87,12 @@ var (
 				currentImagePath := baseOutputPath
 				for i := 1; i <= critiqueLoops; i++ {
 					fmt.Fprintf(cmd.OutOrStdout(), "\n=== Critique loop %d/%d ===\n", i, critiqueLoops)
+					if verbose {
+						if b, err := os.ReadFile(currentImagePath); err == nil {
+							sum := sha256.Sum256(b)
+							fmt.Fprintf(cmd.OutOrStdout(), "Critiquing image: size=%d bytes sha256=%x\n", len(b), sum)
+						}
+					}
 					critiqueText, err := ai.GenerateCritique(ctx, model, currentImagePath, prompt, fragments, images)
 					if err != nil {
 						return fmt.Errorf("critique failed: %w", err)
@@ -94,7 +102,7 @@ var (
 
 					improvementPrompt := generate.BuildImprovementPrompt(prompt, critiqueText)
 
-					imgBytes, err := ai.GenerateImage(ctx, model, []string{currentImagePath}, improvementPrompt, fragments)
+					imgBytes, err := thread.AddUserMessageAndGenerate(ctx, improvementPrompt, currentImagePath)
 					if err != nil {
 						return fmt.Errorf("improvement generation failed: %w", err)
 					}
@@ -102,6 +110,12 @@ var (
 						return err
 					}
 					fmt.Fprintf(cmd.OutOrStdout(), "Improved image saved at: %s\n", baseOutputPath)
+					if verbose {
+						if b2, err := os.ReadFile(baseOutputPath); err == nil {
+							sum2 := sha256.Sum256(b2)
+							fmt.Fprintf(cmd.OutOrStdout(), "Updated image: size=%d bytes sha256=%x\n", len(b2), sum2)
+						}
+					}
 					copyPath := filepath.Join(outputsDir, fmt.Sprintf("%s_improved_%d.png", baseName, i))
 					src, err := os.Open(baseOutputPath)
 					if err == nil {
@@ -165,6 +179,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&output, "output", "o", "output.png", "Path to save the generated PNG image")
 	rootCmd.Flags().IntVar(&critiqueLoops, "critique-loops", 0, "Number of critique-improve loops to run (default: 0)")
 	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
+	rootCmd.Flags().BoolVarP(&verbose, "verbose", "V", false, "Enable verbose logging (sizes and SHA-256 per iteration)")
 }
 
 func initConfig() {
