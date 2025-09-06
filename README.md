@@ -155,9 +155,3 @@ Notes:
 - To debug OpenRouter requests, set `OPENROUTER_DEBUG=1` to print request/response diagnostics to stderr.
 - If critiques feel repetitive, run with `-V` to confirm each loop critiques the latest image (sizes and SHA-256 will change per iteration if updates apply).
 - If you get a 402 credits error, reduce output length or upgrade credits in OpenRouter.
-
-## Uninstall
-
-### macOS (Homebrew):
-```
-```
