@@ -23,10 +23,10 @@ brew tap rkirkendall/tap
 brew install rkirkendall/tap/nano-agent
 ```
 
-### Windows (PowerShell, one‑liner; adds to PATH for current user):
-(lol idk if this actually works but try it?)
-<details>
-<summary>
+### Windows (PowerShell):
+```powershell
+powershell -ExecutionPolicy Bypass -c "iwr https://raw.githubusercontent.com/rkirkendall/nano-agent/main/scripts/install.ps1 -UseB | iex"
+```
 
 Set `GEMINI_API_KEY` in your environment (e.g., in a local `.env` or your shell). If you don’t have one yet, get a key from [Google AI Studio](https://aistudio.google.com/apikey).
 
