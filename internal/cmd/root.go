@@ -26,6 +26,8 @@ var (
 	critiqueLoops int
 	versionFlag   bool
 	verbose       bool
+	aspectRatio   string
+	resolution    string
 
 	rootCmd = &cobra.Command{
 		Use:   "nano-agent [images...]",
@@ -66,7 +68,7 @@ var (
 			ctx := context.Background()
 			model := viper.GetString("model")
 
-			thread, imgBytes, err := ai.StartImageThreadAndGenerate(ctx, model, images, prompt, fragments)
+			thread, imgBytes, err := ai.StartImageThreadAndGenerate(ctx, model, images, prompt, fragments, aspectRatio, resolution)
 			if err != nil {
 				return err
 			}
@@ -183,7 +185,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.nano-agent.yaml)")
-	rootCmd.PersistentFlags().String("model", "gemini-2.5-flash-image-preview:free", "Model to use for generation and critique")
+	rootCmd.PersistentFlags().String("model", "gemini-3-pro-image-preview", "Model to use for generation and critique")
 	viper.BindPFlag("model", rootCmd.PersistentFlags().Lookup("model"))
 
 	rootCmd.Flags().StringSliceVar(&images, "images", []string{}, "Zero or more path(s) to input image files")
@@ -193,6 +195,10 @@ func init() {
 	rootCmd.Flags().IntVar(&critiqueLoops, "critique-loops", 0, "Number of critique-improve loops to run (default: 0)")
 	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "V", false, "Enable verbose logging (sizes and SHA-256 per iteration)")
+	
+	// New flags for Gemini 3
+	rootCmd.Flags().StringVar(&aspectRatio, "aspect-ratio", "", "Aspect ratio for Gemini 3 generation (e.g., '16:9', '1:1')")
+	rootCmd.Flags().StringVarP(&resolution, "resolution", "r", "", "Image resolution for Gemini 3 generation (e.g., '1K', '2K')")
 }
 
 func initConfig() {

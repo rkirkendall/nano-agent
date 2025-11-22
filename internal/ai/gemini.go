@@ -25,8 +25,10 @@ import (
 
 const (
 	defaultOpenRouterBaseURL = "https://openrouter.ai/api/v1"
-	defaultGeminiImageModel  = "models/gemini-2.5-flash-image-preview"
+	defaultGeminiImageModel  = "models/gemini-3-pro-image-preview"
 )
+
+var printedLegacyWarning bool
 
 func loadEnvIfMissing() {
 	b, err := os.ReadFile(".env")
@@ -48,36 +50,57 @@ func loadEnvIfMissing() {
 	}
 }
 
-func isOpenRouterEnabled() bool {
-	v := strings.TrimSpace(os.Getenv("USE_OPENROUTER"))
-	return v == "1" || strings.EqualFold(v, "true")
+// resolveModelProvider determines the effective model name and whether to route via OpenRouter.
+// It supports legacy env vars (USE_OPENROUTER) and the new MODEL prefix convention.
+func resolveModelProvider(model string) (string, bool) {
+	// Legacy USE_OPENROUTER
+	if v := strings.TrimSpace(os.Getenv("USE_OPENROUTER")); v == "1" || strings.EqualFold(v, "true") {
+		if !printedLegacyWarning {
+			fmt.Fprintln(os.Stderr, "NOTE: USE_OPENROUTER is deprecated. Please set MODEL=openrouter/<model> instead.")
+			printedLegacyWarning = true
+		}
+		// Legacy: allow OPENROUTER_MODEL override
+		if env := strings.TrimSpace(os.Getenv("OPENROUTER_MODEL")); env != "" {
+			return env, true
+		}
+		return model, true
+	}
+
+	// New convention: check for openrouter/ prefix
+	if strings.HasPrefix(model, "openrouter/") {
+		return strings.TrimPrefix(model, "openrouter/"), true
+	}
+
+	return model, false
 }
 
 func ensureOpenRouterKey() error {
-	loadEnvIfMissing()
-	if !isOpenRouterEnabled() {
-		return nil
-	}
+	// loadEnvIfMissing already called by ensureAPIKey
 	k := strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY"))
 	if k == "" {
-		return errors.New("OPENROUTER_API_KEY is required when USE_OPENROUTER=1")
+		return errors.New("OPENROUTER_API_KEY is required when using OpenRouter")
 	}
 	return nil
 }
 
 func mapModelForOpenRouter(model string) string {
-	// Environment override takes precedence to allow ops-configured models
+	// Legacy environment override still respected if set
 	if env := strings.TrimSpace(os.Getenv("OPENROUTER_MODEL")); env != "" {
 		return env
 	}
 	m := strings.TrimSpace(model)
 	if m == "" {
-		return "google/gemini-2.5-flash-image-preview:free"
+		return "google/gemini-3-pro-image-preview"
 	}
+	if strings.HasPrefix(m, "openrouter/") {
+		m = strings.TrimPrefix(m, "openrouter/")
+	}
+	// If it already looks like a provider/model string, trust it
 	if strings.Contains(m, "/") {
 		return m
 	}
-	if strings.Contains(m, ":") {
+	// Heuristic: if it looks like a google model but has no provider prefix, add google/
+	if strings.Contains(m, ":") || strings.HasPrefix(m, "gemini-") {
 		return "google/" + m
 	}
 	return "google/" + m
@@ -85,13 +108,12 @@ func mapModelForOpenRouter(model string) string {
 
 // mapModelForGemini normalizes model names for the native Gemini SDK.
 // Accepts inputs like:
-//   - "gemini-2.5-flash-image-preview:free"
-//   - "gemini-2.5-flash-image-preview"
-//   - "google/gemini-2.5-flash-image-preview:free"
-//   - "models/gemini-2.5-flash-image-preview"
+//   - "gemini-3-pro-image-preview"
+//   - "google/gemini-3-pro-image-preview"
+//   - "models/gemini-3-pro-image-preview"
 //
 // and returns a resource name like:
-//   - "models/gemini-2.5-flash-image-preview"
+//   - "models/gemini-3-pro-image-preview"
 func mapModelForGemini(model string) string {
 	m := strings.TrimSpace(model)
 	if m == "" {
@@ -397,10 +419,10 @@ func parseTextFromChatJSON(m map[string]any) (string, error) {
 	return "", errors.New("no text returned by model")
 }
 
-// ensureAPIKey enforces GEMINI_API_KEY usage and configures the client env.
-func ensureAPIKey() error {
+// ensureAPIKey enforces usage of the correct API key depending on the provider.
+func ensureAPIKey(useOpenRouter bool) error {
 	loadEnvIfMissing()
-	if isOpenRouterEnabled() {
+	if useOpenRouter {
 		return ensureOpenRouterKey()
 	}
 	k := strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
@@ -414,207 +436,20 @@ func ensureAPIKey() error {
 
 // GenerateImage routes to OpenRouter or the Gemini SDK to produce an image from an optional
 // set of input images plus a text prompt and fragments. Returns PNG bytes on success.
-func GenerateImage(ctx context.Context, model string, imagePaths []string, prompt string, fragments []string) ([]byte, error) {
-	if err := ensureAPIKey(); err != nil {
-		return nil, err
-	}
-	if isOpenRouterEnabled() {
-		client := newOpenRouterClient()
-		effPrompt := generate.BuildEffectivePrompt(prompt, fragments)
-		baseContent := make([]any, 0, 1+len(imagePaths))
-		if s := strings.TrimSpace(effPrompt); s != "" {
-			baseContent = append(baseContent, map[string]any{"type": "text", "text": s})
-		}
-		withImages := make([]any, 0, len(baseContent)+len(imagePaths))
-		withImages = append(withImages, baseContent...)
-		for _, p := range imagePaths {
-			bimg, rerr := os.ReadFile(p)
-			if rerr == nil && len(bimg) > 0 {
-				withImages = append(withImages, map[string]any{
-					"type":      "image_url",
-					"image_url": map[string]any{"url": toDataURL(guessMIME(p), bimg)},
-				})
-			}
-		}
-
-		// Helper to call chat/completions and parse an image
-		doChat := func(content []any) ([]byte, error) {
-			req := map[string]any{
-				"model":    mapModelForOpenRouter(model),
-				"messages": []any{map[string]any{"role": "user", "content": content}},
-			}
-			m, err := httpJSON(client, ctx, "chat/completions", req)
-			if err != nil {
-				return nil, err
-			}
-			if errObj, ok := m["error"].(map[string]any); ok {
-				if msg, _ := errObj["message"].(string); strings.TrimSpace(msg) != "" {
-					return nil, errors.New(msg)
-				}
-				return nil, errors.New("OpenRouter returned an error during image generation")
-			}
-			if choices, ok := m["choices"].([]any); ok && len(choices) > 0 {
-				if ch, _ := choices[0].(map[string]any); ch != nil {
-					if msg, _ := ch["message"].(map[string]any); msg != nil {
-						if imgs, _ := msg["images"].([]any); len(imgs) > 0 {
-							if im0, _ := imgs[0].(map[string]any); im0 != nil {
-								if iu, _ := im0["image_url"].(map[string]any); iu != nil {
-									if u, _ := iu["url"].(string); strings.HasPrefix(u, "data:") {
-										if i := strings.IndexByte(u, ','); i > 0 {
-											return base64.StdEncoding.DecodeString(u[i+1:])
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-			if img, err2 := parseImageFromChatJSON(m); err2 == nil && len(img) > 0 {
-				return img, nil
-			}
-			// Surface assistant text when no image is returned to expose provider errors
-			if txt, _ := parseTextFromChatJSON(m); strings.TrimSpace(txt) != "" {
-				trim := txt
-				if len(trim) > 512 {
-					trim = trim[:512] + "..."
-				}
-				return nil, fmt.Errorf("no image returned by model: %s", strings.TrimSpace(trim))
-			}
-			return nil, errors.New("no image returned by model")
-		}
-
-		// Try with images (up to 2 attempts), then as last resort text-only
-		var lastErr error
-		for attempt := 1; attempt <= 2; attempt++ {
-			if os.Getenv("OPENROUTER_DEBUG") == "1" {
-				fmt.Fprintf(os.Stderr, "DEBUG openrouter attempt %d with images=%t\n", attempt, len(imagePaths) > 0)
-			}
-			if len(imagePaths) > 0 {
-				if img, err := doChat(withImages); err == nil && len(img) > 0 {
-					return img, nil
-				} else if err != nil {
-					lastErr = err
-				}
-			}
-		}
-		// Last attempt: text-only
-		if img, err := doChat(baseContent); err == nil && len(img) > 0 {
-			return img, nil
-		} else if err != nil {
-			lastErr = err
-		}
-		if lastErr != nil {
-			return nil, lastErr
-		}
-		return nil, errors.New("no image returned by model")
-	}
-	client, err := genai.NewClient(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// If no input images, use simple Text contents flow
-	if len(imagePaths) == 0 {
-		var contents []*genai.Content
-		if s := strings.TrimSpace(prompt); s != "" {
-			contents = append(contents, genai.Text(s)...)
-		}
-		for _, f := range fragments {
-			b, err := os.ReadFile(f)
-			if err != nil {
-				return nil, err
-			}
-			if s := strings.TrimSpace(string(b)); s != "" {
-				contents = append(contents, genai.Text(s)...)
-			}
-		}
-		res, err := client.Models.GenerateContent(ctx, mapModelForGemini(model), contents, nil)
-		if err != nil {
-			return nil, err
-		}
-		if len(res.Candidates) > 0 && res.Candidates[0].Content != nil {
-			var textOut strings.Builder
-			for _, part := range res.Candidates[0].Content.Parts {
-				if part.InlineData != nil && len(part.InlineData.Data) > 0 {
-					return part.InlineData.Data, nil
-				}
-				if part.Text != "" {
-					textOut.WriteString(part.Text)
-				}
-			}
-			if s := strings.TrimSpace(textOut.String()); s != "" {
-				if len(s) > 512 {
-					s = s[:512] + "..."
-				}
-				return nil, fmt.Errorf("no image returned by model: %s", s)
-			}
-		}
-		return nil, errors.New("no image returned by model")
-	}
-
-	// With input images: build Parts then wrap into a single Content
-	var partsGen []*genai.Part
-	if s := strings.TrimSpace(prompt); s != "" {
-		partsGen = append(partsGen, genai.NewPartFromText(s))
-	}
-	for _, f := range fragments {
-		b, err := os.ReadFile(f)
-		if err != nil {
-			return nil, err
-		}
-		if s := strings.TrimSpace(string(b)); s != "" {
-			partsGen = append(partsGen, genai.NewPartFromText(s))
-		}
-	}
-	for _, p := range imagePaths {
-		b, err := os.ReadFile(p)
-		if err != nil {
-			return nil, err
-		}
-		mime := "image/png"
-		switch strings.ToLower(filepath.Ext(p)) {
-		case ".jpg", ".jpeg":
-			mime = "image/jpeg"
-		case ".webp":
-			mime = "image/webp"
-		case ".gif":
-			mime = "image/gif"
-		}
-		partsGen = append(partsGen, &genai.Part{InlineData: &genai.Blob{MIMEType: mime, Data: b}})
-	}
-	contents := []*genai.Content{genai.NewContentFromParts(partsGen, genai.RoleUser)}
-	res, err := client.Models.GenerateContent(ctx, mapModelForGemini(model), contents, nil)
-	if err != nil {
-		return nil, err
-	}
-	if len(res.Candidates) > 0 && res.Candidates[0].Content != nil {
-		var textOut strings.Builder
-		for _, part := range res.Candidates[0].Content.Parts {
-			if part.InlineData != nil && len(part.InlineData.Data) > 0 {
-				return part.InlineData.Data, nil
-			}
-			if part.Text != "" {
-				textOut.WriteString(part.Text)
-			}
-		}
-		if s := strings.TrimSpace(textOut.String()); s != "" {
-			if len(s) > 512 {
-				s = s[:512] + "..."
-			}
-			return nil, fmt.Errorf("no image returned by model: %s", s)
-		}
-	}
-	return nil, errors.New("no image returned by model")
+// Note: This is a convenience wrapper around StartImageThreadAndGenerate.
+func GenerateImage(ctx context.Context, model string, imagePaths []string, prompt string, fragments []string, aspectRatio string, resolution string) ([]byte, error) {
+	_, img, err := StartImageThreadAndGenerate(ctx, model, imagePaths, prompt, fragments, aspectRatio, resolution)
+	return img, err
 }
 
 // GenerateCritique produces actionable critique text for a given image using OpenRouter or
 // the Gemini SDK. It includes the original prompt and optional input reference images.
 func GenerateCritique(ctx context.Context, model string, imagePath string, originalPrompt string, fragments []string, inputImagePaths []string) (string, error) {
-	if err := ensureAPIKey(); err != nil {
+	effModel, useOpenRouter := resolveModelProvider(model)
+	if err := ensureAPIKey(useOpenRouter); err != nil {
 		return "", err
 	}
-	if isOpenRouterEnabled() {
+	if useOpenRouter {
 		client := newOpenRouterClient()
 		instruction := critique.BuildCritiqueInstruction()
 		// Build chat/completions style message with text + image_url parts
@@ -648,7 +483,7 @@ func GenerateCritique(ctx context.Context, model string, imagePath string, origi
 			}
 		}
 		req := map[string]any{
-			"model": mapModelForOpenRouter(model),
+			"model": mapModelForOpenRouter(effModel),
 			"messages": []any{
 				map[string]any{
 					"role":    "user",
@@ -724,7 +559,7 @@ func GenerateCritique(ctx context.Context, model string, imagePath string, origi
 		}
 	}
 	contents := []*genai.Content{genai.NewContentFromParts(parts, genai.RoleUser)}
-	resp, err := client.Models.GenerateContent(ctx, mapModelForGemini(model), contents, nil)
+	resp, err := client.Models.GenerateContent(ctx, mapModelForGemini(effModel), contents, nil)
 	if err != nil {
 		return "", err
 	}
@@ -755,17 +590,39 @@ type ImageThread struct {
 	orMessages              []any
 	geminiClient            *genai.Client
 	geminiHistory           []*genai.Content
+	geminiGenConfig         *genai.GenerateContentConfig
 	originalInputImagePaths []string
 }
 
 // StartImageThreadAndGenerate creates a new image generation thread with the initial
 // prompt, fragments, and optional input images, generates an image, and returns the
 // thread along with the generated PNG bytes.
-func StartImageThreadAndGenerate(ctx context.Context, model string, imagePaths []string, prompt string, fragments []string) (*ImageThread, []byte, error) {
-	if err := ensureAPIKey(); err != nil {
+func StartImageThreadAndGenerate(ctx context.Context, model string, imagePaths []string, prompt string, fragments []string, aspectRatio string, resolution string) (*ImageThread, []byte, error) {
+	effModel, useOpenRouter := resolveModelProvider(model)
+	if err := ensureAPIKey(useOpenRouter); err != nil {
 		return nil, nil, err
 	}
-	thread := &ImageThread{model: model, useOpenRouter: isOpenRouterEnabled(), originalInputImagePaths: imagePaths}
+
+	var geminiConfig *genai.GenerateContentConfig
+	if aspectRatio != "" || resolution != "" {
+		if useOpenRouter {
+			return nil, nil, errors.New("aspect-ratio and resolution are only supported for native Google Gemini 3 models")
+		}
+		// Check if model contains "gemini-3"
+		if !strings.Contains(effModel, "gemini-3") {
+			return nil, nil, errors.New("aspect-ratio and resolution are only supported for Gemini 3 models")
+		}
+
+		geminiConfig = &genai.GenerateContentConfig{
+			ResponseModalities: []string{"IMAGE", "TEXT"},
+			ImageConfig: &genai.ImageConfig{
+				AspectRatio: aspectRatio,
+				ImageSize:   resolution,
+			},
+		}
+	}
+
+	thread := &ImageThread{model: effModel, useOpenRouter: useOpenRouter, originalInputImagePaths: imagePaths, geminiGenConfig: geminiConfig}
 	if thread.useOpenRouter {
 		thread.orClient = newOpenRouterClient()
 		// Build initial user message
@@ -939,7 +796,7 @@ func (t *ImageThread) appendOpenRouterAssistantMessage(img []byte, assistantText
 // geminiGenerate performs a multi-turn generation using the accumulated history and
 // returns the generated image bytes and any assistant text.
 func (t *ImageThread) geminiGenerate(ctx context.Context) ([]byte, string, error) {
-	res, err := t.geminiClient.Models.GenerateContent(ctx, mapModelForGemini(t.model), t.geminiHistory, nil)
+	res, err := t.geminiClient.Models.GenerateContent(ctx, mapModelForGemini(t.model), t.geminiHistory, t.geminiGenConfig)
 	if err != nil {
 		return nil, "", err
 	}

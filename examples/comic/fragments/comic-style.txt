@@ -1,7 +1,9 @@
-Illustrated in the artistic style of 1960s pop-art.
+**Style:** Illustrated in the artistic style of 1960s pop-art comic books. Bold lines, ben-day dots, and vibrant colors.
+**Composition:** Cinematic framing with dynamic angles.
+**Lighting:** Hard lighting with strong shadows, typical of noir comics. High contrast.
+**Color Palette:** Warm mid-century modern colors (mustard yellow, teal, burnt orange).
 
-Pay close attention to the following aspects when compositing and editing images together:
-1. Object scale: Object scale should look photorealistic, even if the illustration style is not.
-2. Collision detection and object placement. If rendering a character with his feet on a desk, the feet should not be on top of another object on the desk like a typewriter or a mug.
-
-Places should be depicted as fully furnished, but with no people in the frame. Use a warm mid-century modern color palette.
+**Technical Instructions:**
+1. **Object Scale:** Maintain realistic relative scale between characters and environment.
+2. **Text:** Render speech bubbles clearly with legible, bold, sans-serif font in all caps.
+3. **Integration:** Seamlessly blend characters into the scene using consistent lighting and shadows. Ensure characters are grounded in the environment.

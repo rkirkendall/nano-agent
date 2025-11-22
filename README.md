@@ -4,7 +4,7 @@
 </p>
 
 
-nano-agent is a CLI for generating, editing and compositing images using Google's `gemini-2.5-flash-image-preview` ("Nano Banana") model.
+nano-agent is a CLI for generating, editing and compositing images using Google's `gemini-3-pro-image-preview` ("Nano Banana") model.
 
 ## Features
 - Generate images from a prompt directly from the terminal
@@ -13,6 +13,7 @@ nano-agent is a CLI for generating, editing and compositing images using Google'
 - Support for critique-improve feedback loops via `-cl/--critique-loops`
 - Threaded critique-improve loops that append feedback to the original generation thread (Gemini + OpenRouter) to reduce artifacts/pixelation across iterations
 - Verbose mode `-V/--verbose` logs per-iteration file size and SHA-256 so you can verify the latest image is being critiqued
+- Support for aspect ratio (`--aspect-ratio`) and resolution (`--resolution`) configuration (Gemini 3 models only)
 
 ## Install
 
@@ -47,42 +48,34 @@ nano-agent examples/isometric/input.png \
   <img src="examples/isometric/lux-palace.png" alt="nano-agent header" width="50%">  
 </p>
 
-- Generate a comic-styled panel from a prompt (uses the comic style fragment):
+- Generate a comic strip with 3 panels (Gemini 3 Pro Image):
 ```bash
-nano-agent examples/comic/characters/barly.png \
-  -p "Barly the bar cart similing and saying OH YEAH in a dialog bubble." \
+# Panel 1: Dan at work
+nano-agent examples/comic/characters/dan.png examples/comic/place/office.png \
+  -p "Wide cinematic shot. Dan sitting at his desk in a messy office, looking tired. A speech bubble says 'ANOTHER LONG NIGHT...'." \
   -f examples/comic/fragments/comic-style.txt \
-  -o examples/comic/panels/two.png
-```
-<p align="center">
-  <img src="examples/comic/panels/two.png" alt="nano-agent header" width="50%">
-</p>
+  --aspect-ratio 16:9 \
+  -o examples/comic/panels/panel_1.png
 
-
-- Compose a character into a place to form a panel:
-```bash
-nano-agent -p "Compose as a left-facing medium shot; keep character proportions. Dan says in a dialog bubble: Yeah I could use a drink." \
-  examples/comic/characters/dan.png \
-  examples/comic/place/office.png \
+# Panel 2: Barly arrives
+nano-agent examples/comic/characters/barly.png examples/comic/place/office.png \
+  -p "Medium shot. Barly the bar cart rolls into the office from the left, looking cheerful. A speech bubble says 'TIME FOR A BREAK, BOSS!'." \
   -f examples/comic/fragments/comic-style.txt \
-  -o examples/comic/panels/one.png
-```
+  --aspect-ratio 16:9 \
+  -o examples/comic/panels/panel_2.png
 
-<p align="center">
-  <img src="examples/comic/panels/one.png" alt="nano-agent header" width="50%">
-</p>
-
-- Multi-image composition (two characters + a place):
-```bash
-nano-agent -p "Two-character panel in the office; Dan on right, Barly on left. Dan says CHEERS!" \
-  examples/comic/characters/dan.png \
-  examples/comic/characters/barly.png \
-  examples/comic/place/office.png \
+# Panel 3: Cheers
+nano-agent examples/comic/characters/dan.png examples/comic/characters/barly.png examples/comic/place/office.png \
+  -p "Close up two-shot. Dan and Barly clinking a glass and a bottle. Dan smiles. A speech bubble says 'YOU'RE A LIFESAVER, BARLY!'." \
   -f examples/comic/fragments/comic-style.txt \
-  -o examples/comic/panels/panel_dan_barly_office.png
+  --aspect-ratio 16:9 \
+  -o examples/comic/panels/panel_3.png
 ```
+
 <p align="center">
-  <img src="examples/comic/panels/three.png" alt="nano-agent header" width="50%">
+  <img src="examples/comic/panels/panel_1.png" alt="Panel 1" width="80%"><br>
+  <img src="examples/comic/panels/panel_2.png" alt="Panel 2" width="80%"><br>
+  <img src="examples/comic/panels/panel_3.png" alt="Panel 3" width="80%">
 </p>
 
 - Run critique-improve loops on a produced panel (`-cl` is supported):
@@ -115,40 +108,54 @@ Auto-update: on startup, the CLI checks GitHub for a newer version and prints an
 ## Contributing
 
 ## Configuration
-- Environment variable: `GEMINI_API_KEY` (required for Google Gemini)
-- `.env` is auto-read if present; existing environment vars are not overridden.
+The CLI automatically loads a `.env` file from the current directory if present.
 
-### OpenRouter (optional)
-You can route all generation and critique through OpenRouter instead of Google Gemini.
+### Google Gemini (Native)
+Set the `GEMINI_API_KEY` environment variable.
 
-- Set the following environment variables:
-  - `USE_OPENROUTER=1` — enables OpenRouter routing
-  - `OPENROUTER_API_KEY` — your OpenRouter API key
-  - `OPENROUTER_MODEL` — optional override of the default model used via OpenRouter
-  - Optional:
-    - `OPENROUTER_BASE_URL` — defaults to `https://openrouter.ai/api/v1`
-    - `OPENROUTER_SITE` — sets HTTP-Referer header (default `http://localhost`)
-    - `OPENROUTER_TITLE` — sets X-Title header (default `nano-agent`)
-
-- Example (bash):
 ```bash
-export USE_OPENROUTER=1 # 1 to turn on, 0 to turn off
-export OPENROUTER_API_KEY=your_openrouter_key
-# optional model override (defaults to google/gemini-2.5-flash-image-preview)
-# export OPENROUTER_MODEL="google/gemini-2.5-flash-image-preview"
-# optional:
-# export OPENROUTER_SITE=https://your.app
-# export OPENROUTER_TITLE="nano-agent"
-
-# Generate an image (OpenRouter chat/completions; images saved as PNG)
-nano-agent -p "Generate a beautiful sunset over mountains" -o output-openrouter.png
+export GEMINI_API_KEY=your_gemini_key
 ```
 
-Notes:
-- The default model remains `gemini-2.5-flash-image-preview` and works via OpenRouter without changes.
-- When `USE_OPENROUTER=1`, `OPENROUTER_MODEL` takes precedence over the CLI `--model` flag.
-- Image inputs are supported; pass one or more `--images` paths or positional image paths as shown in the examples above.
-- Critique loops (`-cl/--critique-loops`) are supported with OpenRouter as well.
+The default model is `models/gemini-3-pro-image-preview`. You can override it by setting the `MODEL` environment variable:
+
+```bash
+export MODEL=models/gemini-3-pro-image-preview
+```
+
+### Advanced Generation (Gemini 3 only)
+When using Gemini 3 models, you can specify aspect ratio and resolution:
+
+```bash
+nano-agent -p "..." --aspect-ratio 16:9 --resolution 2K
+```
+
+### OpenRouter (Alternative)
+You can route requests through OpenRouter by prefixing the model name with `openrouter/`.
+
+- Set `OPENROUTER_API_KEY` to your OpenRouter key.
+- Set `MODEL` to start with `openrouter/`.
+
+Example:
+```bash
+export OPENROUTER_API_KEY=your_openrouter_key
+# Uses OpenRouter to call the same Gemini model
+export MODEL=openrouter/google/gemini-3-pro-image-preview
+```
+
+Optional OpenRouter settings:
+- `OPENROUTER_BASE_URL` — defaults to `https://openrouter.ai/api/v1`
+- `OPENROUTER_SITE` — sets HTTP-Referer header (default `http://localhost`)
+- `OPENROUTER_TITLE` — sets X-Title header (default `nano-agent`)
+
+### Legacy Configuration (Deprecated)
+The old `USE_OPENROUTER=1` configuration is supported but deprecated. It forces OpenRouter usage regardless of the model prefix.
+
+```bash
+# DEPRECATED way
+export USE_OPENROUTER=1
+export OPENROUTER_API_KEY=...
+```
 
 ### Troubleshooting
 - If you see an HTML response (e.g., Cloudflare 503), it indicates a temporary provider outage. Retry after a minute, switch models, or unset `USE_OPENROUTER` to use the native Gemini SDK.

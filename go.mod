@@ -6,7 +6,7 @@ require (
 	github.com/openai/openai-go/v2 v2.2.2
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.18.2
-	google.golang.org/genai v1.22.0
+	google.golang.org/genai v1.36.0
 )
 
 require (
